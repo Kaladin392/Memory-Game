@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Memory Game</title>
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <style>
+        body {
+            background-color: lightblue;
+            font-family: Arial, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+    
+        #container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            gap: 30px;
+            max-width: 1700px;
+            margin: auto;
+        }
+    
+        .scoreboard {
+            width: 300px;
+            max-width: 400px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 90px;
+            padding-top: 6px;
+            overflow-y: auto;
+        }
+    
+        .scoreboard h2 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #444;
+            text-align: center;
+        }
+    
+        .scoreboard table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+    
+        .scoreboard th,
+        .scoreboard td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+    
+        .scoreboard th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+    
+        .scoreboard tr:hover {
+            background-color: #f9f9f9;
+        }
+    
+        .game-content {
+            flex-basis: 60%;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+    
+        .game-content h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    
+        .game-content p {
+            font-size: 16px;
+            color: #555;
+            margin: 10px 0;
+        }
+    
+        .game-content input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    
+        .game-content button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            transition: background-color 0.3s ease;
+        }
+    
+        .game-content button:hover {
+            background-color: #0056b3;
+        }
+    
+        .card-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+    
+        .card {
+            height: 200px;
+            width: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: lightblue;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+    
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+        }
+    
+        .victory-message {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #dff0d8;
+            border: 1px solid #c3e6cb;
+            color: darkgreen;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    
+        .victory-message h2,
+        .victory-message h3 {
+            margin: 10px 0;
+        }
+    </style>
+    
+</head>
+
+<body>
+    <div id="container"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function colorPicker() {
+            const hexCharacters = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"];
+            let hexCode = "#";
+            for (let i = 0; i < 6; i++) {
+                const randomIndex = Math.floor(Math.random() * hexCharacters.length);
+                hexCode += hexCharacters[randomIndex];
+            }
+            return hexCode;
+        }
+
+        function generateColors() {
+            const colors = Array.from({ length: 5 }, colorPicker);
+            return [...colors, ...colors].sort(() => Math.random() - 0.5);
+        }
+
+        function Card({ color, isFlipped, onClick }) {
+            const cardStyle = {
+                height: 200,
+                width: 150,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "10px",
+                backgroundColor: isFlipped ? color : "lightblue",
+                cursor: "pointer",
+                boxShadow: "0px 0px 5px #666"
+            };
+
+            return <div style={cardStyle} onClick={onClick}></div>;
+        }
+
+        function Scoreboard({ scores }) {
+            return (
+                <div style={{ textAlign: "center", marginTop: "20px", padding: "20px", backgroundColor: "white", borderRadius: "10px" }}>
+                    <h2>Top Scores</h2>
+                    <table style={{ margin: "0 auto", borderCollapse: "collapse", width: "80%" }}>
+                        <thead>
+                            <tr style={{ borderBottom: "2px solid #ccc" }}>
+                                <th style={{ padding: "10px", textAlign: "left" }}>Rank</th>
+                                <th style={{ padding: "10px", textAlign: "left" }}>Player</th>
+                                <th style={{ padding: "10px", textAlign: "left" }}>Time</th>
+                                <th style={{ padding: "10px", textAlign: "left" }}>Mistakes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {scores.map((score, index) => (
+                                <tr key={index} style={{ borderBottom: "1px solid #ddd" }}>
+                                    <td style={{ padding: "10px" }}>{index + 1}</td>
+                                    <td style={{ padding: "10px" }}>{score.player}</td>
+                                    <td style={{ padding: "10px" }}>{score.time}</td>
+                                    <td style={{ padding: "10px" }}>{score.mistakes}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        }
+
+
+        function MemoryGame() {
+            const [cards, setCards] = useState(generateColors());
+            const [flippedIndexes, setFlippedIndexes] = useState([]);
+            const [matchedIndexes, setMatchedIndexes] = useState([]);
+            const [playerName, setPlayerName] = useState("");
+            const [flippedCount, setFlippedCount] = useState(0);
+            const [mistakes, setMistakes] = useState(0);
+            const [gameCompleted, setGameCompleted] = useState(false);
+            const [timer, setTimer] = useState(0);
+            const [buttonColor, setButtonColor] = useState(colorPicker());
+            const [isTimerRunning, setIsTimerRunning] = useState(false);
+            const [specialCongrats, setSpecialCongrats] = useState(false);
+            const [scores, setScores] = useState([]);
+
+            function compareScores(a, b) {
+                if (a.mistakes !== b.mistakes) {
+                    return a.mistakes - b.mistakes; 
+                } 
+                else { 
+                    return a.time - b.time;
+                }
+            }
+
+            useEffect(() => {
+                axios.get('http://localhost:5000/api/scores')
+                    .then((response) => {
+                        const sortedScores = response.data.sort(compareScores);
+                        setScores(sortedScores);
+                    })
+                    .catch((error) => {
+                        console.error("There was an error fetching the scores:", error);
+                    });
+            }, []);
+
+            useEffect(() => {
+                if (gameCompleted) {
+                    const newScore = {
+                        player: playerName,
+                        time: timer,
+                        mistakes: mistakes,
+                    };
+
+                    axios.post('http://localhost:5000/api/scores', newScore)
+                        .then(response => {
+                            console.log("Score saved:", response.data);
+                            axios.get('http://localhost:5000/api/scores')
+                                .then((response) => {
+                                    const sortedScores = response.data.sort(compareScores);
+                                    setScores(sortedScores);
+                                })
+                                .catch((error) => console.error("Error fetching scores:", error));
+                    })
+                    .catch(error => console.error("Error saving score:", error));
+                }       
+            }, [gameCompleted, playerName, timer, mistakes]);
+
+
+            useEffect(() => {
+                if (isTimerRunning) {
+                    const interval = setInterval(() => setTimer((prev) => prev + 1), 1000);
+                    return () => clearInterval(interval);
+                }
+            }, [isTimerRunning]);
+
+            useEffect(() => {
+                if (flippedCount === 1 && !isTimerRunning) {
+                    setIsTimerRunning(true);
+                }
+            }, [flippedCount]);
+
+            function handleCardClick(index) {
+                if (flippedIndexes.includes(index) || matchedIndexes.includes(index) || flippedIndexes.length === 2) {
+                    return;
+                }
+
+                setFlippedCount(flippedCount + 1);
+
+                const newFlipped = [...flippedIndexes, index];
+                setFlippedIndexes(newFlipped);
+
+                if (newFlipped.length === 2) {
+                    const [firstIndex, secondIndex] = newFlipped;
+                    if (cards[firstIndex] === cards[secondIndex]) {
+                        setMatchedIndexes([...matchedIndexes, firstIndex, secondIndex]);
+                    } else {
+                        setMistakes(mistakes + 1);
+                    }
+
+                    setTimeout(() => {
+                        setFlippedIndexes([]);
+                    }, 1000);
+                }
+            }
+
+            useEffect(() => {
+                if (matchedIndexes.length === cards.length) {
+                    setGameCompleted(true);
+                    setIsTimerRunning(false);
+                    setButtonColor(colorPicker());
+                    if (mistakes === 0) {
+                        setSpecialCongrats(true);
+                    }
+                }
+            }, [matchedIndexes]);
+
+            function handleRetry() {
+                window.location.reload();
+            }
+
+            const row1 = cards.slice(0, 5);
+            const row2 = cards.slice(5);
+
+            return (
+                
+            <div id="container">
+            <div className="scoreboard"><Scoreboard scores={scores}/></div>
+
+            <div className="game-content">
+                <h1>Try For 0: A Memory Game For Gamblers</h1>
+                <div><p>This is just a simple memory game... Or is it? The goal is to match them, but can you do it without making a single mistake? I don't think so, but feel free to try.</p></div>
+                <p>Player: {playerName || "Enter your name below"}</p>
+                <input
+                    type="text"
+                    value={playerName}
+                    placeholder="Enter your name"
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    disabled={gameCompleted}
+                />
+                <p>Time: {timer} seconds</p>
+
+                <div className="card-container">
+                    {row1.map((color, index) => (
+                        <Card
+                            key={index}
+                            color={color}
+                            isFlipped={flippedIndexes.includes(index) || matchedIndexes.includes(index)}
+                            onClick={() => handleCardClick(index)}
+                        />
+                    ))}
+                    {row2.map((color, index) => (
+                        <Card
+                            key={index + 5}
+                            color={color}
+                            isFlipped={flippedIndexes.includes(index + 5) || matchedIndexes.includes(index + 5)}
+                            onClick={() => handleCardClick(index + 5)}
+                        />
+                    ))}
+                </div>
+
+                {gameCompleted && (
+                    <div className="victory-message">
+                        <h2>Congrats, {playerName || "Player"}! Seems your victory was in the cards today!</h2>
+                        {specialCongrats && <h3>Wow, you managed to complete it without a single mistake! Truly impressive...</h3>}
+                        <p>Total Time Spent: {timer} seconds</p>
+                        <p>Total Cards Flipped: {flippedCount}</p>
+                        <p>Mistakes: {mistakes}</p>
+                        <button onClick={handleRetry} style={{backgroundColor:buttonColor}}>Retry</button>
+                    </div>
+                )}
+                </div>
+            </div>
+            );
+        }
+
+
+        ReactDOM.render(<MemoryGame />, document.getElementById("container"));
+    </script>
+</body>
+
+</html>
